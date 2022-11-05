@@ -1,6 +1,6 @@
 # prime
 
-This is a module about prime number.
+This is a module about prime numbers.
 
 ## Usage
 ```python=
