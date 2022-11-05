@@ -19,17 +19,17 @@ Misc variables:
 '''
 import operator
 from abc import ABC, ABCMeta, abstractmethod
-from functools import cache, reduce, total_ordering
+from functools import reduce, total_ordering
 from itertools import islice, count, takewhile, chain
 from math import sqrt, log2
 from numbers import Integral, Real
-from typing import Iterable, Mapping, overload
+from typing import Iterable, overload
 from sys import maxsize
 
 
-@cache
-def is_prime(num: int) -> bool:
+def is_prime(number: int) -> bool:
     '''Returns whether num is prime or not.'''
+    num = int(number)
     if num == 2:
         return True
     if num < 2 or not num % 2:
@@ -68,27 +68,19 @@ def is_sprp_by_bases(num: int, bases: Iterable[int]) -> bool:
     return True
 
 
-class _Primes(Mapping[int, int]):
+class _Primes:
     __slots__ = ()
     __contains__ = is_prime
+    _list = []
 
     def __len__(self):
-        return len(self.__next__.__kwdefaults__['old'])
+        return len(self._list)
 
-    def __hash__(self) -> int:
-        try:
-            return hash(id(self.__next__.__kwdefaults__['old']))
-        except KeyError:
-            return NotImplemented
-
-    def __iter__(self):
-        return self
-
-    def __next__(self, number=1, *, old=[],
-                 it=(i for i in count(2) if is_prime(i))):
+    def __next(self, number=1, *, old=[],
+               it=(i for i in count(2) if is_prime(i))):
         for _ in range(number):
-            old.append(next(it))
-        return old[-1]
+            self._list.append(next(it))
+        return self._list[-1]
 
     @overload
     def __getitem__(self, key: int) -> int: ...
@@ -100,13 +92,13 @@ class _Primes(Mapping[int, int]):
         if isinstance(key, slice):
             # Get the start, stop, and step from the slice
             assert key.indices(maxsize)[-1] < maxsize / 10, 'Too big...'
-            return tuple(islice(chain(self.__next__.__kwdefaults__[
-                         'old'], self), *key.indices(maxsize)))
+            return tuple(
+                islice(chain(self._list, iter(self.__next, None)), *key.indices(maxsize)))
         if isinstance(key, int):
             assert key >= 0, 'Do not support negative index'
             if key < len(self):
-                return self.__next__.__kwdefaults__['old'][key]
-            return self.__next__(len(self) - key + 1)
+                return self._list[key]
+            return self.__next(len(self) - key + 1)
         raise ValueError('Invalid argument type.')
 
 
@@ -202,11 +194,11 @@ class PrimeDecomposition(dict, metaclass=JustLikeInt):
         def superscript(num: int):
             trans = str.maketrans('0123456789', '⁰¹²³⁴⁵⁶⁷⁸⁹')
             return str(num).translate(trans) if num > 1 else ''
-        num_str = ' × '.join(f'{k}{superscript(v)}' for (
+        num_str = '×'.join(f'{k}{superscript(v)}' for (
             k, v) in self.items()) or '1'
         if self.sign > 0:
-            return num_str
-        return '-' + num_str
+            return f'PrimeDecomposition( {num_str} )'
+        return f'PrimeDecomposition( -{num_str} )'
 
     def __int__(self):
         return int(
@@ -221,6 +213,9 @@ class PrimeDecomposition(dict, metaclass=JustLikeInt):
         if isinstance(__o, Real):
             return int(self) > __o
         return NotImplemented
+
+    def __hash__(self):
+        return hash(int(self))
 
 
 if __name__ == '__main__':
